@@ -7,7 +7,7 @@ import warnings
 # This avoids the cuCtxSynchronize_v2 context-destroyed error (709) on
 # CUDA 13.0+ drivers.
 # IMPORTANT: Must be set BEFORE any numba import.
-os.environ.setdefault("NUMBA_CUDA_USE_NVIDIA_BINDING", "1")
+from app import cuda_setup  # noqa: F401
 
 import numpy as np
 from scipy.signal import convolve2d

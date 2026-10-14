@@ -8,4 +8,10 @@ import sys
 os.environ.setdefault("NUMBA_CUDA_USE_NVIDIA_BINDING", "1")
 
 # Allow ``from app.logic import …`` without installing as a package.
-sys.path.insert(0, os.path.dirname(__file__))
+backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# Ensure CUDA paths and bindings are configured before Numba compiles kernels
+import app.cuda_setup  # noqa: F401
+
