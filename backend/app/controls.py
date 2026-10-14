@@ -273,12 +273,22 @@ class ControlsDock(QDockWidget):
 
         self.check_render_bench = QCheckBox("Render result on screen")
         self.check_render_bench.setChecked(True)
-        self.check_render_bench.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        self.check_render_bench.setStyleSheet("color: #cbd5e1; font-size: 12px; padding: 2px 0;")
         bench_layout.addWidget(self.check_render_bench)
 
         self.label_bench_res = QLabel("")
         self.label_bench_res.setWordWrap(True)
-        self.label_bench_res.setStyleSheet("color: #38bdf8; font-size: 11px; padding: 4px; background: rgba(14, 165, 233, 0.1); border-radius: 4px;")
+        self.label_bench_res.setTextFormat(Qt.RichText)
+        self.label_bench_res.setStyleSheet("""
+            QLabel {
+                color: #f1f5f9;
+                font-size: 13px;
+                padding: 10px 12px;
+                background-color: rgba(14, 165, 233, 0.12);
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-radius: 6px;
+            }
+        """)
         self.label_bench_res.hide()
         bench_layout.addWidget(self.label_bench_res)
 

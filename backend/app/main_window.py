@@ -439,7 +439,9 @@ class MainWindow(QMainWindow):
     @pyqtSlot(int)
     def run_benchmark(self, steps):
         self.stop_run()
-        self.controls.set_benchmark_result("⚡ Running Benchmark...")
+        self.controls.set_benchmark_result(
+            "<span style='color: #38bdf8; font-size: 13px; font-weight: 600;'>⚡ Running Benchmark...</span>"
+        )
         self.step_in_progress = True
         pattern_name = self.controls.get_current_pattern_name()
         self.do_benchmark_signal.emit(self.renderer.grid, self.controls.get_current_mode(), steps, pattern_name)
@@ -460,7 +462,16 @@ class MainWindow(QMainWindow):
         self.generation += steps
         self.label_status_gen.setText(f"Gen: {self.generation:,}")
         self.update_alive_count()
-        res = f"Results: {mode_used.upper()} ({steps} steps) — Total: {total_ms:.1f}ms | Avg: {avg_ms:.3f}ms/step"
+        res = (
+            f"<div style='line-height: 145%;'>"
+            f"<span style='color: #38bdf8; font-weight: 700; font-size: 14px;'>Results: {mode_used.upper()}</span> "
+            f"<span style='color: #94a3b8; font-size: 12px;'>({steps:,} steps)</span><br>"
+            f"<span style='color: #cbd5e1; font-size: 13px;'>Total:</span> "
+            f"<b style='color: #ffffff; font-size: 14px;'>{total_ms:.1f} ms</b> &nbsp;&bull;&nbsp; "
+            f"<span style='color: #cbd5e1; font-size: 13px;'>Avg:</span> "
+            f"<b style='color: #38bdf8; font-size: 14px;'>{avg_ms:.3f} ms/step</b>"
+            f"</div>"
+        )
         self.controls.set_benchmark_result(res)
         self.label_status_mode.setText(f"Benchmark finished ({mode_used.upper()})")
         self.step_in_progress = False
