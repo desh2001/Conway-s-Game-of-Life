@@ -311,6 +311,7 @@ class MainWindow(QMainWindow):
         
         self.worker.step_done.connect(self.on_step_done)
         self.worker.benchmark_done.connect(self.on_benchmark_done)
+        self.worker.benchmark_all_done.connect(self.on_benchmark_all_done)
         
         self.worker_thread.start()
 
@@ -330,6 +331,7 @@ class MainWindow(QMainWindow):
         self.controls.step_requested.connect(self.single_step)
         self.controls.toggle_run_requested.connect(self.toggle_run)
         self.controls.benchmark_requested.connect(self.run_benchmark)
+        self.controls.benchmark_all_requested.connect(self.run_benchmark_all)
         self.controls.view_results_requested.connect(self.open_chart_viewer)
         self.controls.pattern_load_requested.connect(self.load_pattern)
         self.controls.theme_changed.connect(self.renderer.set_theme)
@@ -439,13 +441,31 @@ class MainWindow(QMainWindow):
 
     @pyqtSlot(int)
     def run_benchmark(self, steps):
+        mode = self.controls.get_current_mode()
+        if mode in ("all_report_engines", "all_engines"):
+            self.run_benchmark_all(steps)
+            return
+
         self.stop_run()
         self.controls.set_benchmark_result(
             "<span style='color: #38bdf8; font-size: 13px; font-weight: 600;'>⚡ Running Benchmark...</span>"
         )
         self.step_in_progress = True
         pattern_name = self.controls.get_current_pattern_name()
-        self.do_benchmark_signal.emit(self.renderer.grid, self.controls.get_current_mode(), steps, pattern_name)
+        self.do_benchmark_signal.emit(self.renderer.grid, mode, steps, pattern_name)
+
+    @pyqtSlot(int)
+    def run_benchmark_all(self, steps):
+        self.stop_run()
+        self.controls.set_benchmark_result(
+            "<div style='line-height: 140%;'>"
+            "<span style='color: #38bdf8; font-size: 13px; font-weight: 700;'>🏆 Benchmarking All 4 Engines in Once...</span><br>"
+            "<span style='color: #94a3b8; font-size: 11px;'>Executing Serial CPU, OpenMP CPU, CUDA Original, and CUDA Optimised...</span>"
+            "</div>"
+        )
+        self.step_in_progress = True
+        pattern_name = self.controls.get_current_pattern_name()
+        self.do_benchmark_signal.emit(self.renderer.grid, "all_report_engines", steps, pattern_name)
 
     def _get_friendly_engine_name(self, mode_used: str) -> str:
         mapping = {
@@ -508,6 +528,80 @@ class MainWindow(QMainWindow):
         self.label_status_mode.setText(f"Benchmark finished ({engine_name})")
         self.step_in_progress = False
         
+        if self.chart_viewer and self.chart_viewer.isVisible():
+            self.chart_viewer.refresh()
+
+    @pyqtSlot(dict, int, int, int, np.ndarray)
+    def on_benchmark_all_done(self, results, rows, cols, steps, next_grid):
+        if self.controls.check_render_bench.isChecked():
+            self.renderer.set_grid(next_grid)
+        self.generation += steps
+        self.label_status_gen.setText(f"Gen: {self.generation:,}")
+        self.update_alive_count()
+
+        # Extract values for the 4 engines
+        gpu_opt = results.get("gpu_opt", {})
+        gpu_orig = results.get("gpu", {})
+        openmp = results.get("numba_opt", {})
+        serial = results.get("loop", {})
+
+        t_opt = float(gpu_opt.get("total_ms", 1.0))
+        t_orig = float(gpu_orig.get("total_ms", 1.0))
+        t_omp = float(openmp.get("total_ms", 1.0))
+        t_ser = float(serial.get("total_ms", 1.0))
+
+        sp_opt_ser = t_ser / t_opt if t_opt > 0 else 0
+        sp_opt_omp = t_omp / t_opt if t_opt > 0 else 0
+        sp_orig_ser = t_ser / t_orig if t_orig > 0 else 0
+        sp_omp_ser = t_ser / t_omp if t_omp > 0 else 0
+
+        res = (
+            f"<div style='line-height: 145%; font-family: Segoe UI, sans-serif;'>"
+            f"<div style='color: #38bdf8; font-weight: 700; font-size: 13px; margin-bottom: 6px;'>"
+            f"🏆 All 4 Engines Results &nbsp;<span style='color: #94a3b8; font-size: 11px;'>({steps:,} gens &bull; {rows}×{cols})</span>"
+            f"</div>"
+            f"<table style='width: 100%; border-collapse: collapse; font-size: 12px; color: #f1f5f9;'>"
+            f"<tr style='border-bottom: 1px solid #334155; color: #94a3b8; font-size: 11px;'>"
+            f"<th align='left' style='padding: 2px 0;'>Engine</th>"
+            f"<th align='right' style='padding: 2px 0;'>Time</th>"
+            f"<th align='right' style='padding: 2px 0;'>Throughput</th>"
+            f"<th align='right' style='padding: 2px 0;'>Speedup</th>"
+            f"</tr>"
+            f"<tr style='border-bottom: 1px solid rgba(255,255,255,0.06);'>"
+            f"<td style='color: #38bdf8; font-weight: 700; padding: 4px 0;'>⚡ CUDA Opt</td>"
+            f"<td align='right' style='color: #ffffff; font-weight: bold;'>{t_opt:.1f} ms</td>"
+            f"<td align='right' style='color: #34d399; font-weight: bold;'>{gpu_opt.get('throughput', 0):,.0f} M/s</td>"
+            f"<td align='right' style='color: #fbbf24; font-weight: bold;'>{sp_opt_ser:.2f}×</td>"
+            f"</tr>"
+            f"<tr style='border-bottom: 1px solid rgba(255,255,255,0.06);'>"
+            f"<td style='color: #4ade80; padding: 4px 0;'>🟢 CUDA Orig</td>"
+            f"<td align='right' style='color: #e2e8f0;'>{t_orig:.1f} ms</td>"
+            f"<td align='right' style='color: #34d399;'>{gpu_orig.get('throughput', 0):,.0f} M/s</td>"
+            f"<td align='right' style='color: #cbd5e1;'>{sp_orig_ser:.2f}×</td>"
+            f"</tr>"
+            f"<tr style='border-bottom: 1px solid rgba(255,255,255,0.06);'>"
+            f"<td style='color: #60a5fa; padding: 4px 0;'>💻 OpenMP</td>"
+            f"<td align='right' style='color: #e2e8f0;'>{t_omp:.1f} ms</td>"
+            f"<td align='right' style='color: #34d399;'>{openmp.get('throughput', 0):,.0f} M/s</td>"
+            f"<td align='right' style='color: #cbd5e1;'>{sp_omp_ser:.2f}×</td>"
+            f"</tr>"
+            f"<tr>"
+            f"<td style='color: #94a3b8; padding: 4px 0;'>🔄 Serial CPU</td>"
+            f"<td align='right' style='color: #e2e8f0;'>{t_ser:.1f} ms</td>"
+            f"<td align='right' style='color: #34d399;'>{serial.get('throughput', 0):,.0f} M/s</td>"
+            f"<td align='right' style='color: #94a3b8;'>1.00×</td>"
+            f"</tr>"
+            f"</table>"
+            f"<div style='margin-top: 6px; padding-top: 5px; border-top: 1px solid #334155; font-size: 11px; color: #a5f3fc;'>"
+            f"🚀 <b>CUDA Optimised</b> vs <b>OpenMP:</b> "
+            f"<span style='color: #38bdf8; font-weight: bold; font-size: 12px;'>{sp_opt_omp:.2f}× faster</span>"
+            f"</div>"
+            f"</div>"
+        )
+        self.controls.set_benchmark_result(res)
+        self.label_status_mode.setText("⚡ Finished (All 4 Engines)")
+        self.step_in_progress = False
+
         if self.chart_viewer and self.chart_viewer.isVisible():
             self.chart_viewer.refresh()
 

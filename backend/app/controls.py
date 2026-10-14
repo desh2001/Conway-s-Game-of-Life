@@ -16,6 +16,7 @@ class ControlsDock(QDockWidget):
     step_requested = pyqtSignal()
     toggle_run_requested = pyqtSignal()
     benchmark_requested = pyqtSignal(int)  # steps
+    benchmark_all_requested = pyqtSignal(int)  # steps for all engines in once
     view_results_requested = pyqtSignal()
     pattern_load_requested = pyqtSignal(str, str, float, str)  # val, mode (tile/center), density, custom_rle
     theme_changed = pyqtSignal(str)
@@ -254,6 +255,7 @@ class ControlsDock(QDockWidget):
         mode_lay.addWidget(lbl_engine)
 
         self.combo_mode = QComboBox()
+        self.combo_mode.addItem("🏆 All 4 Engines (Compare in Once)", "all_report_engines")
         self.combo_mode.addItem("💻 CPU (OpenMP)", "numba_opt")
         self.combo_mode.addItem("⚡ CUDA Optimised", "gpu_opt")
         self.combo_mode.addItem("🟢 CUDA Original", "gpu")
@@ -282,7 +284,28 @@ class ControlsDock(QDockWidget):
         b_lay.addWidget(btn_bench)
         bench_layout.addLayout(b_lay)
 
-        btn_view_results = QPushButton("📊  View Benchmark Charts")
+        btn_bench_all = QPushButton("🏆 Compare All 4 in Once")
+        btn_bench_all.setObjectName("btnPrimary")
+        btn_bench_all.setStyleSheet("""
+            QPushButton#btnPrimary {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0284c7, stop:1 #06b6d4);
+                color: #ffffff;
+                font-weight: 700;
+                font-size: 12px;
+                border: 1px solid #38bdf8;
+                border-radius: 6px;
+                padding: 7px 10px;
+            }
+            QPushButton#btnPrimary:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0369a1, stop:1 #0891b2);
+                border-color: #67e8f9;
+            }
+        """)
+        btn_bench_all.setCursor(Qt.PointingHandCursor)
+        btn_bench_all.clicked.connect(lambda: self.benchmark_all_requested.emit(self.spin_bench.value()))
+        bench_layout.addWidget(btn_bench_all)
+
+        btn_view_results = QPushButton("📊  HPC Report Results & Charts")
         btn_view_results.setObjectName("btnSecondary")
         btn_view_results.setCursor(Qt.PointingHandCursor)
         btn_view_results.clicked.connect(self.view_results_requested.emit)
