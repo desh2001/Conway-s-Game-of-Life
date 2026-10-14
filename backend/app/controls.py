@@ -1,6 +1,6 @@
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QPushButton, QLabel,
     QSpinBox, QSlider, QComboBox, QPlainTextEdit, QDockWidget, QCheckBox,
     QScrollArea, QFrame, QButtonGroup
 )
@@ -120,14 +120,22 @@ class ControlsDock(QDockWidget):
         grid_card, grid_layout = self._create_card("Grid Configuration", "📐")
 
         # Quick size presets
-        grid_presets_layout = QHBoxLayout()
-        grid_presets = [("50×80", 50, 80), ("100×100", 100, 100), ("250×250", 250, 250), ("1K×1K", 1000, 1000)]
-        for label, r, c in grid_presets:
+        grid_presets_layout = QGridLayout()
+        grid_presets_layout.setSpacing(6)
+        grid_presets = [
+            ("256×256", 256, 256),
+            ("512×512", 512, 512),
+            ("1024×1024", 1024, 1024),
+            ("1920×1080", 1080, 1920),
+            ("2048×2048", 2048, 2048),
+            ("4096×4096", 4096, 4096),
+        ]
+        for idx, (label, r, c) in enumerate(grid_presets):
             g_btn = QPushButton(label)
             g_btn.setObjectName("presetBtn")
             g_btn.setCursor(Qt.PointingHandCursor)
             g_btn.clicked.connect(lambda checked, rows=r, cols=c: self._set_and_apply_size(rows, cols))
-            grid_presets_layout.addWidget(g_btn)
+            grid_presets_layout.addWidget(g_btn, idx // 2, idx % 2)
         grid_layout.addLayout(grid_presets_layout)
 
         # Custom inputs
