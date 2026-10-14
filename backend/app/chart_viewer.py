@@ -15,14 +15,25 @@ import matplotlib.pyplot as plt
 from app import benchmark_logger
 
 METHOD_COLORS = {
+    'numba_opt': '#10b981',
+    'gpu_opt': '#ec4899',
+    'gpu': '#06b6d4',
+    'loop': '#ef4444',
     'numpy': '#3b82f6',
     'scipy': '#8b5cf6',
-    'loop': '#ef4444',
     'numba': '#f59e0b',
     'numba_fast': '#f97316',
-    'numba_opt': '#10b981',
-    'gpu': '#06b6d4',
-    'gpu_opt': '#ec4899'
+}
+
+METHOD_LABELS = {
+    'numba_opt': 'CPU (OpenMP)',
+    'gpu_opt': 'CUDA Optimised',
+    'gpu': 'CUDA Original',
+    'loop': 'Serial CPU',
+    'numpy': 'CPU (NumPy)',
+    'scipy': 'CPU (SciPy)',
+    'numba': 'CPU (Numba)',
+    'numba_fast': 'CPU (Numba Fast)',
 }
 
 class ChartViewer(QMainWindow):
@@ -101,7 +112,7 @@ class ChartViewer(QMainWindow):
         side_layout.addWidget(QLabel("<b>Methods</b>"))
         methods = list(METHOD_COLORS.keys())
         for m in methods:
-            cb = QCheckBox(m)
+            cb = QCheckBox(METHOD_LABELS.get(m, m))
             cb.setChecked(True)
             cb.setStyleSheet(f"color: {METHOD_COLORS[m]}; font-weight: bold;")
             cb.stateChanged.connect(self.draw_chart)
@@ -125,7 +136,7 @@ class ChartViewer(QMainWindow):
         side_layout.addSpacing(10)
         side_layout.addWidget(QLabel("<b>Y-Axis</b>"))
         self.combo_y = QComboBox()
-        self.combo_y.addItems(["Total Time (ms)", "Avg ms/step"])
+        self.combo_y.addItems(["Total Time (ms)", "Avg ms/step", "Throughput (M cells/s)"])
         self.combo_y.currentIndexChanged.connect(self.draw_chart)
         side_layout.addWidget(self.combo_y)
         
@@ -200,10 +211,20 @@ class ChartViewer(QMainWindow):
                 
                 if y_axis_mode == "Total Time (ms)":
                     y_vals.append(float(row['total_ms']))
+                elif y_axis_mode == "Throughput (M cells/s)":
+                    try:
+                        cells = int(row.get('grid_rows', 1)) * int(row.get('grid_cols', 1))
+                        steps = int(row.get('steps', 1))
+                        t_ms = float(row.get('total_ms', 1))
+                        th = (cells * steps) / (t_ms / 1000.0) / 1e6 if t_ms > 0 else 0
+                        y_vals.append(th)
+                    except Exception:
+                        y_vals.append(0.0)
                 else:
                     y_vals.append(float(row['avg_ms_per_step']))
                     
             color = METHOD_COLORS.get(method, '#ffffff')
+            display_label = METHOD_LABELS.get(method, method)
             
             # Sort chronologically or numerically if possible
             if x_axis_mode != "Timestamp":
@@ -211,15 +232,15 @@ class ChartViewer(QMainWindow):
                 pass
                 
             if chart_type == "Scatter Plot":
-                self.ax.scatter(x_vals, y_vals, label=method, color=color, alpha=0.7, s=50)
+                self.ax.scatter(x_vals, y_vals, label=display_label, color=color, alpha=0.7, s=50)
             elif chart_type == "Line Chart":
                 # Only makes sense if X is sortable, but let's just plot
-                self.ax.plot(x_vals, y_vals, label=method, color=color, marker='o', linewidth=2)
+                self.ax.plot(x_vals, y_vals, label=display_label, color=color, marker='o', linewidth=2)
             else: # Bar Chart
                 # Grouped bar chart requires calculating offsets, but for simplicity
                 # we can just use scatter/line or unaligned bars.
                 # Actually, simple bars can overlap. For robustness:
-                self.ax.bar(x_vals, y_vals, label=method, color=color, alpha=0.5)
+                self.ax.bar(x_vals, y_vals, label=display_label, color=color, alpha=0.5)
 
         if grouped:
             self.ax.legend()

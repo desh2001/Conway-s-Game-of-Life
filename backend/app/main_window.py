@@ -332,6 +332,7 @@ class MainWindow(QMainWindow):
         self.controls.benchmark_requested.connect(self.run_benchmark)
         self.controls.view_results_requested.connect(self.open_chart_viewer)
         self.controls.pattern_load_requested.connect(self.load_pattern)
+        self.controls.theme_changed.connect(self.renderer.set_theme)
 
     def setup_status_bar(self):
         self.status = self.statusBar()
@@ -446,12 +447,36 @@ class MainWindow(QMainWindow):
         pattern_name = self.controls.get_current_pattern_name()
         self.do_benchmark_signal.emit(self.renderer.grid, self.controls.get_current_mode(), steps, pattern_name)
 
+    def _get_friendly_engine_name(self, mode_used: str) -> str:
+        mapping = {
+            'numba_opt': 'CPU (OpenMP)',
+            'gpu_opt': 'CUDA Optimised',
+            'gpu': 'CUDA Original',
+            'loop': 'Serial CPU',
+            'numpy': 'CPU (NumPy)',
+            'scipy': 'CPU (SciPy)',
+            'numba': 'CPU (Numba)',
+            'numba_fast': 'CPU (Numba Fast)',
+        }
+        if mode_used in mapping:
+            return mapping[mode_used]
+        if hasattr(self, "controls") and hasattr(self.controls, "combo_mode"):
+            for i in range(self.controls.combo_mode.count()):
+                if self.controls.combo_mode.itemData(i) == mode_used:
+                    text = self.controls.combo_mode.itemText(i)
+                    for emoji in ["💻 ", "⚡ ", "🟢 ", "🔄 ", "🚀 ", "🔬 ", "⚙️ "]:
+                        if text.startswith(emoji):
+                            return text[len(emoji):]
+                    return text
+        return str(mode_used).upper()
+
     @pyqtSlot(np.ndarray, float, str)
     def on_step_done(self, next_grid, duration_ms, mode_used):
         self.renderer.set_grid(next_grid)
         self.generation += 1
         self.label_status_gen.setText(f"Gen: {self.generation:,}")
-        self.label_status_mode.setText(f"⚡ {mode_used.upper()}: {duration_ms:.2f} ms")
+        engine_name = self._get_friendly_engine_name(mode_used)
+        self.label_status_mode.setText(f"⚡ {engine_name}: {duration_ms:.2f} ms")
         self.update_alive_count()
         self.step_in_progress = False
 
@@ -462,18 +487,25 @@ class MainWindow(QMainWindow):
         self.generation += steps
         self.label_status_gen.setText(f"Gen: {self.generation:,}")
         self.update_alive_count()
+        
+        engine_name = self._get_friendly_engine_name(mode_used)
+        cells = next_grid.size
+        throughput = (cells * steps) / (total_ms / 1000.0) / 1e6 if total_ms > 0 else 0
+        
         res = (
             f"<div style='line-height: 145%;'>"
-            f"<span style='color: #38bdf8; font-weight: 700; font-size: 14px;'>Results: {mode_used.upper()}</span> "
-            f"<span style='color: #94a3b8; font-size: 12px;'>({steps:,} steps)</span><br>"
-            f"<span style='color: #cbd5e1; font-size: 13px;'>Total:</span> "
+            f"<span style='color: #38bdf8; font-weight: 700; font-size: 14px;'>Results: {engine_name}</span> "
+            f"<span style='color: #94a3b8; font-size: 12px;'>({steps:,} generations)</span><br>"
+            f"<span style='color: #cbd5e1; font-size: 13px;'>Time:</span> "
             f"<b style='color: #ffffff; font-size: 14px;'>{total_ms:.1f} ms</b> &nbsp;&bull;&nbsp; "
             f"<span style='color: #cbd5e1; font-size: 13px;'>Avg:</span> "
-            f"<b style='color: #38bdf8; font-size: 14px;'>{avg_ms:.3f} ms/step</b>"
+            f"<b style='color: #38bdf8; font-size: 14px;'>{avg_ms:.3f} ms/gen</b><br>"
+            f"<span style='color: #cbd5e1; font-size: 13px;'>Throughput:</span> "
+            f"<b style='color: #34d399; font-size: 14px;'>{throughput:,.0f} M cells/s</b>"
             f"</div>"
         )
         self.controls.set_benchmark_result(res)
-        self.label_status_mode.setText(f"Benchmark finished ({mode_used.upper()})")
+        self.label_status_mode.setText(f"Benchmark finished ({engine_name})")
         self.step_in_progress = False
         
         if self.chart_viewer and self.chart_viewer.isVisible():

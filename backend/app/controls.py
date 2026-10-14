@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
 )
 
 from app.patterns import PATTERN_LIBRARY, PATTERN_CATEGORIES
+from app.renderer import COLOR_THEMES
 
 class ControlsDock(QDockWidget):
     # Signals to communicate with MainWindow
@@ -17,6 +18,7 @@ class ControlsDock(QDockWidget):
     benchmark_requested = pyqtSignal(int)  # steps
     view_results_requested = pyqtSignal()
     pattern_load_requested = pyqtSignal(str, str, float, str)  # val, mode (tile/center), density, custom_rle
+    theme_changed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__("Control Center", parent)
@@ -113,6 +115,21 @@ class ControlsDock(QDockWidget):
 
         layout.addWidget(sim_card)
 
+        # -------------------------------------------------------------
+        # 2. VISUAL THEME CARD
+        # -------------------------------------------------------------
+        theme_card, theme_layout = self._create_card("Visual Theme", "🎨")
+        
+        self.combo_theme = QComboBox()
+        # Put Monochrome Minimal first (default from Figure 1)
+        theme_order = ["classic", "neon_green", "cyberpunk", "matrix", "solar_amber", "synthwave"]
+        for key in theme_order:
+            if key in COLOR_THEMES:
+                self.combo_theme.addItem(COLOR_THEMES[key]["name"], key)
+        self.combo_theme.currentIndexChanged.connect(self._on_theme_changed)
+        theme_layout.addWidget(self.combo_theme)
+
+        layout.addWidget(theme_card)
 
         # -------------------------------------------------------------
         # 3. GRID CONFIGURATION CARD
@@ -190,8 +207,8 @@ class ControlsDock(QDockWidget):
         # Random Density Widget
         self.slider_density = QSlider(Qt.Horizontal)
         self.slider_density.setRange(5, 80)
-        self.slider_density.setValue(30)
-        self.label_density = QLabel("30%")
+        self.slider_density.setValue(20)
+        self.label_density = QLabel("20%")
         self.label_density.setStyleSheet("color: #00f0ff; font-weight: bold;")
         self.slider_density.valueChanged.connect(lambda v: self.label_density.setText(f"{v}%"))
 
@@ -237,21 +254,21 @@ class ControlsDock(QDockWidget):
         mode_lay.addWidget(lbl_engine)
 
         self.combo_mode = QComboBox()
+        self.combo_mode.addItem("💻 CPU (OpenMP)", "numba_opt")
+        self.combo_mode.addItem("⚡ CUDA Optimised", "gpu_opt")
+        self.combo_mode.addItem("🟢 CUDA Original", "gpu")
+        self.combo_mode.addItem("🔄 Serial CPU", "loop")
         self.combo_mode.addItem("🚀 CPU (NumPy Vectorized)", "numpy")
-        self.combo_mode.addItem("⚡ CPU (SciPy Convolution)", "scipy")
-        self.combo_mode.addItem("🔄 CPU (Native Python Loop)", "loop")
-        self.combo_mode.addItem("💻 CPU (Numba Multicore)", "numba")
+        self.combo_mode.addItem("🔬 CPU (SciPy Convolution)", "scipy")
+        self.combo_mode.addItem("⚙️ CPU (Numba Multicore)", "numba")
         self.combo_mode.addItem("⚡ CPU (Numba Fast Branching)", "numba_fast")
-        self.combo_mode.addItem("🏎️ CPU (Numba Optimized)", "numba_opt")
-        self.combo_mode.addItem("🟢 GPU (CUDA Accelerated)", "gpu")
-        self.combo_mode.addItem("⚡ GPU (CUDA Optimized)", "gpu_opt")
         mode_lay.addWidget(self.combo_mode)
         bench_layout.addLayout(mode_lay)
 
         b_lay = QHBoxLayout()
         self.spin_bench = QSpinBox()
         self.spin_bench.setRange(1, 10000)
-        self.spin_bench.setValue(200)
+        self.spin_bench.setValue(100)
 
         lbl_steps = QLabel("Steps:")
         lbl_steps.setStyleSheet("color: #94a3b8;")
@@ -307,6 +324,10 @@ class ControlsDock(QDockWidget):
         fps = int(1000 / v) if v > 0 else 0
         self.label_speed.setText(f"{v} ms ({fps} FPS)")
         self.speed_changed.emit(v)
+
+    def _on_theme_changed(self):
+        theme_key = self.combo_theme.currentData()
+        self.theme_changed.emit(theme_key)
 
     def on_pattern_select(self):
         val = self.combo_pat.currentData()
