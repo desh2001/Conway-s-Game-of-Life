@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import (
 )
 
 from app.patterns import PATTERN_LIBRARY, PATTERN_CATEGORIES
-from app.renderer import COLOR_THEMES
 
 class ControlsDock(QDockWidget):
     # Signals to communicate with MainWindow
@@ -18,7 +17,6 @@ class ControlsDock(QDockWidget):
     benchmark_requested = pyqtSignal(int)  # steps
     view_results_requested = pyqtSignal()
     pattern_load_requested = pyqtSignal(str, str, float, str)  # val, mode (tile/center), density, custom_rle
-    theme_changed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__("Control Center", parent)
@@ -115,18 +113,6 @@ class ControlsDock(QDockWidget):
 
         layout.addWidget(sim_card)
 
-        # -------------------------------------------------------------
-        # 2. VISUAL THEMES CARD
-        # -------------------------------------------------------------
-        theme_card, theme_layout = self._create_card("Visual Theme", "🎨")
-        
-        self.combo_theme = QComboBox()
-        for key, info in COLOR_THEMES.items():
-            self.combo_theme.addItem(info["name"], key)
-        self.combo_theme.currentIndexChanged.connect(self._on_theme_changed)
-        theme_layout.addWidget(self.combo_theme)
-
-        layout.addWidget(theme_card)
 
         # -------------------------------------------------------------
         # 3. GRID CONFIGURATION CARD
@@ -303,10 +289,6 @@ class ControlsDock(QDockWidget):
         fps = int(1000 / v) if v > 0 else 0
         self.label_speed.setText(f"{v} ms ({fps} FPS)")
         self.speed_changed.emit(v)
-
-    def _on_theme_changed(self):
-        theme_key = self.combo_theme.currentData()
-        self.theme_changed.emit(theme_key)
 
     def on_pattern_select(self):
         val = self.combo_pat.currentData()

@@ -332,7 +332,6 @@ class MainWindow(QMainWindow):
         self.controls.benchmark_requested.connect(self.run_benchmark)
         self.controls.view_results_requested.connect(self.open_chart_viewer)
         self.controls.pattern_load_requested.connect(self.load_pattern)
-        self.controls.theme_changed.connect(self.renderer.set_theme)
 
     def setup_status_bar(self):
         self.status = self.statusBar()

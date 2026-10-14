@@ -45,9 +45,9 @@ COLOR_THEMES = {
     },
     "classic": {
         "name": "⚪ Monochrome Minimal",
-        "cell": (0.9, 0.95, 1.0),
-        "bg": (0.07, 0.09, 0.12),
-        "grid": (0.18, 0.22, 0.28)
+        "cell": (0.95, 0.95, 0.98),
+        "bg": (0.05, 0.06, 0.08),
+        "grid": (0.16, 0.18, 0.22)
     }
 }
 
@@ -80,7 +80,7 @@ class GridRenderer(QOpenGLWidget):
         self.needs_texture_upload = True
         self.last_bounds = None
 
-        self.current_theme = "neon_green"
+        self.current_theme = "classic"
         theme = COLOR_THEMES[self.current_theme]
         self.cell_color = theme["cell"]
         self.bg_color = theme["bg"]
